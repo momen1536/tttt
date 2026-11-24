@@ -1,0 +1,12 @@
+name = "college-chatbot"
+main = "src/worker.js"
+compatibility_date = "2026-02-01"
+
+# Static single-page app. The Worker serves everything from ./public.
+[assets]
+directory = "./public"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+[observability]
+enabled = true

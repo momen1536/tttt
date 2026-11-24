@@ -1,0 +1,16 @@
+{
+  "name": "nova-chatbot",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Nova — a single-page chatbot for a college project, built with vanilla HTML/CSS/JS",
+  "scripts": {
+    "dev": "wrangler dev --port 8787",
+    "serve": "python -m http.server 8787 --directory public",
+    "test": "node scripts/smoke.mjs && node scripts/features.test.mjs && node scripts/study.test.mjs && node scripts/storage.test.mjs",
+    "build": "wrangler deploy --dry-run --outdir dist"
+  },
+  "devDependencies": {
+    "wrangler": "^3.90.0"
+  }
+}

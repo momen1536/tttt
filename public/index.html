@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="description" content="Nova — a study chatbot with multiple conversations, model switching, saved prompts, and rich Markdown and LaTeX replies." />
+  <meta name="theme-color" content="#0a0f1e" />
+  <title>Nova — Study Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="./vendor/katex/katex.min.css" />
+  <link rel="stylesheet" href="./styles.css?v=9" />
+  <link rel="stylesheet" href="./study.css?v=7" />
+  <link rel="stylesheet" href="./theme.css?v=10" />
+  <link
+    rel="icon"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='24' fill='%236d5efc'/%3E%3Ctext x='50' y='70' font-size='58' font-family='Inter,sans-serif' font-weight='700' fill='white' text-anchor='middle'%3EN%3C/text%3E%3C/svg%3E"
+  />
+</head>
+<body>
+  <a class="skip-link" href="#composer-input">Skip to message input</a>
+
+  <!-- Icon sprite: every icon in the interface. -->
+  <svg class="icon-sprite" aria-hidden="true" focusable="false">
+    <defs>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
+      <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10" /></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4.5 4.5" /></symbol>
+      <symbol id="i-close" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12" /></symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></symbol>
+      <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2.5" /><path d="M15 5.5A2.5 2.5 0 0 0 12.5 3H6.5A2.5 2.5 0 0 0 4 5.5v6A2.5 2.5 0 0 0 6.5 14" /></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 13 4.5 4.5L19 7" /></symbol>
+      <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.5 6.4" /><path d="M20 4v7h-7" /></symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M6 7l1 12.5A1.5 1.5 0 0 0 8.5 21h7a1.5 1.5 0 0 0 1.5-1.5L18 7" /><path d="M10 11v6M14 11v6" /></symbol>
+      <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4 20h4L19.5 8.5a2.5 2.5 0 0 0-3.5-3.5L4.5 16.5 4 20Z" /><path d="m14.5 6.5 3.5 3.5" /></symbol>
+      <symbol id="i-stop" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2.5" /></symbol>
+      <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3.5 2.7 5.5 6 .9-4.35 4.25 1.03 6-5.38-2.85-5.38 2.85 1.03-6L3.3 9.9l6-.9L12 3.5Z" /></symbol>
+      <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M12 3.5 13.8 9l5.5 1.8-5.5 1.8L12 18l-1.8-5.4L4.7 10.8 10.2 9 12 3.5Z" /><path d="M18.5 15.5 19.3 18l2.5.8-2.5.8-.8 2.4-.8-2.4-2.4-.8 2.4-.8.8-2.5Z" /></symbol>
+      <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12M7 11l5 5 5-5" /><path d="M4 19h16" /></symbol>
+      <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="7.5" cy="15.5" r="3.5" /><path d="m10.2 13 9-9M15.2 4.5l3 3M18.2 1.5l3 3" /></symbol>
+      <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4" /></symbol>
+      <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" /></symbol>
+      <symbol id="i-send" viewBox="0 0 24 24"><path d="M22 2 11 13" /><path d="M22 2 15 22l-4-9-9-4 20-7Z" /></symbol>
+      <symbol id="i-arrow-down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6" /></symbol>
+      <symbol id="i-speaker" viewBox="0 0 24 24"><path d="M11 5 6.5 9H3v6h3.5L11 19V5Z" /><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" /></symbol>
+      <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5V5.5Z" /><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20v3H6.5A2.5 2.5 0 0 1 4 18.5" /></symbol>
+      <symbol id="i-message" viewBox="0 0 24 24"><path d="M20 15.5a2.5 2.5 0 0 1-2.5 2.5H8l-4 3V6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v9Z" /></symbol>
+      <symbol id="i-plug" viewBox="0 0 24 24"><path d="M9 3v5M15 3v5M6 8h12v2a6 6 0 0 1-6 6 6 6 0 0 1-6-6V8ZM12 16v5" /></symbol>
+      <symbol id="i-stack" viewBox="0 0 24 24"><rect x="4" y="3.5" width="13" height="15" rx="2.5" /><path d="M8 21h8.5A2.5 2.5 0 0 0 19 18.5V8" /><path d="M7.5 8h6M7.5 11.5h4" /></symbol>
+      <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3" /></symbol>
+      <symbol id="i-image" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5" /><circle cx="9" cy="10" r="1.6" /><path d="m5 17 4.5-4.5 3.5 3.5 2.5-2.5L20 17" /></symbol>
+      <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V4M4 20h16" /><path d="M8 16v-5M12.5 16V7M17 16v-3" /></symbol>
+    </defs>
+  </svg>
+
+  <div class="app" id="app">
+    <button class="sidebar-backdrop" id="sidebar-backdrop" type="button" aria-label="Close conversation list" tabindex="-1"></button>
+
+    <!-- ── Conversation sidebar ───────────────────────────────── -->
+    <aside class="panel sidebar" id="sidebar" aria-label="Conversations">
+      <div class="panel-glow" aria-hidden="true"></div>
+
+      <header class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1" />
+            <circle cx="12" cy="12" r="4" />
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-name">Nova</h1>
+          <p class="brand-sub">Study assistant</p>
+        </div>
+        <button class="icon-btn sidebar-close" id="sidebar-close" type="button" aria-label="Close conversation list" title="Close">
+          <svg class="icon"><use href="#i-close"></use></svg>
+        </button>
+      </header>
+
+      <button class="new-chat-btn" id="new-chat" type="button">
+        <svg class="icon"><use href="#i-plus"></use></svg>
+        <span>New chat</span>
+      </button>
+
+      <div class="search-field side-search">
+        <svg class="icon" aria-hidden="true"><use href="#i-search"></use></svg>
+        <input
+          class="search-input"
+          id="chat-search"
+          type="search"
+          placeholder="Search conversations"
+          aria-label="Search conversations"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <button class="search-clear" id="chat-search-clear" type="button" aria-label="Clear search" title="Clear search" hidden>
+          <svg class="icon"><use href="#i-close"></use></svg>
+        </button>
+      </div>
+
+      <nav class="chat-list" id="chat-list" aria-label="Conversation history"></nav>
+
+      <div class="side-empty" id="chat-empty" hidden>
+        <p class="side-empty-title">No conversations found</p>
+        <p class="side-empty-text">Try a different search, or start a new chat.</p>
+      </div>
+
+      <details class="side-topics" id="side-topics">
+        <summary>Study topics</summary>
+        <div class="topic-chips" id="topic-chips"></div>
+      </details>
+
+      <footer class="panel-foot">
+        <button class="foot-btn" id="study-btn" type="button" title="Open the study hub">
+          <svg class="icon"><use href="#i-stack"></use></svg>
+          <span>Study</span>
+          <span class="foot-badge" id="study-badge" hidden></span>
+        </button>
+        <button class="foot-btn" id="prompt-library-btn" type="button" title="Open the prompt library">
+          <svg class="icon"><use href="#i-book"></use></svg>
+          <span>Prompts</span>
+        </button>
+        <button class="foot-btn" id="foot-settings" type="button" title="AI settings">
+          <svg class="icon"><use href="#i-plug"></use></svg>
+          <span>Connect</span>
+        </button>
+        <span class="foot-status" id="engine-foot">On-device engine</span>
+      </footer>
+    </aside>
+
+    <!-- ── Chat ───────────────────────────────────────────────── -->
+    <main class="chat" aria-label="Chat with Nova">
+      <header class="chat-head">
+        <button class="icon-btn sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Open conversation list" aria-controls="sidebar" aria-expanded="false" title="Conversations">
+          <svg class="icon"><use href="#i-menu"></use></svg>
+        </button>
+
+        <div class="chat-identity">
+          <div class="avatar avatar-bot" aria-hidden="true">N</div>
+          <div class="chat-title">
+            <span class="chat-name">Nova</span>
+            <button class="chat-status engine-pill" id="engine-pill" type="button" aria-haspopup="dialog" title="AI settings">
+              <i class="dot" aria-hidden="true"></i><span id="engine-label">Built-in engine</span>
+            </button>
+          </div>
+        </div>
+
+        <button class="model-btn" id="model-btn" type="button" aria-haspopup="dialog" aria-expanded="false" title="Switch model">
+          <span class="model-dot" aria-hidden="true"></span>
+          <span class="model-btn-text">
+            <span class="model-btn-label" id="model-btn-label">Gemini 3.5 Flash-Lite</span>
+            <span class="model-btn-provider" id="model-btn-provider">Google AI Studio</span>
+          </span>
+          <svg class="icon model-chevron"><use href="#i-chevron"></use></svg>
+        </button>
+
+        <div class="chat-actions">
+          <label class="sr-only" for="chat-tag">Subject tag for this conversation</label>
+          <select class="tag-select" id="chat-tag" title="Tag this conversation with a subject"></select>
+          <button class="icon-btn" id="study-head-btn" type="button" aria-label="Open study hub" title="Study hub">
+            <svg class="icon"><use href="#i-stack"></use></svg>
+          </button>
+          <button class="icon-btn" id="export-btn" type="button" aria-label="Export conversation" title="Export conversation as Markdown">
+            <svg class="icon"><use href="#i-download"></use></svg>
+          </button>
+          <button class="icon-btn" id="settings-btn" type="button" aria-haspopup="dialog" aria-label="AI settings" title="AI settings">
+            <svg class="icon"><use href="#i-settings"></use></svg>
+          </button>
+          <button class="icon-btn" id="theme-toggle" type="button" aria-label="Switch colour theme" title="Switch colour theme">
+            <svg class="icon ico-moon"><use href="#i-moon"></use></svg>
+            <svg class="icon ico-sun"><use href="#i-sun"></use></svg>
+          </button>
+          <button class="icon-btn head-new" id="new-chat-top" type="button" aria-label="New chat" title="New chat">
+            <svg class="icon"><use href="#i-plus"></use></svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- model selector popover -->
+      <div class="model-popover" id="model-popover" role="dialog" aria-label="Choose a model" hidden>
+        <div class="pop-head">
+          <div class="search-field">
+            <svg class="icon" aria-hidden="true"><use href="#i-search"></use></svg>
+            <input class="search-input" id="model-search" type="search" placeholder="Search models" aria-label="Search models" autocomplete="off" spellcheck="false" />
+          </div>
+        </div>
+        <div class="provider-tabs" id="model-provider-tabs" role="tablist" aria-label="Provider" hidden></div>
+        <p class="pop-hint" id="model-hint" hidden></p>
+        <div class="pop-body" id="model-body">
+          <div class="fav-block" id="model-favorites" hidden></div>
+          <div class="model-list" id="model-list"></div>
+          <p class="pop-empty" id="model-empty" hidden>No models match that search.</p>
+          <div class="pop-loading" id="model-loading" hidden>
+            <span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span>
+          </div>
+        </div>
+        <div class="pop-foot">
+          <button class="pop-link" id="model-settings-link" type="button">AI settings</button>
+          <span class="pop-count" id="model-count"></span>
+        </div>
+      </div>
+
+      <div class="messages" id="messages" role="log" aria-live="polite" aria-relevant="additions text"></div>
+
+      <button class="scroll-btn" id="scroll-btn" type="button" aria-label="Jump to latest message" title="Jump to latest">
+        <span class="unread" aria-hidden="true"></span>
+        <svg class="icon"><use href="#i-arrow-down"></use></svg>
+      </button>
+
+      <div class="composer-wrap">
+        <!-- quick prompt picker -->
+        <div class="prompt-quick" id="prompt-quick" role="dialog" aria-label="Quick prompts" hidden>
+          <div class="pq-head">
+            <div class="search-field">
+              <svg class="icon" aria-hidden="true"><use href="#i-search"></use></svg>
+              <input class="search-input" id="prompt-quick-search" type="search" placeholder="Find a prompt" aria-label="Find a prompt" autocomplete="off" />
+            </div>
+          </div>
+          <div class="cat-chips pq-cats" id="prompt-quick-cats" role="group" aria-label="Prompt categories"></div>
+          <div class="pq-list" id="prompt-quick-list"></div>
+          <div class="pq-foot">
+            <button class="pop-link" id="prompt-quick-library" type="button">Open prompt library</button>
+          </div>
+        </div>
+
+        <div class="attach-preview" id="attach-preview" hidden>
+          <img id="attach-img" alt="Attached question photo" />
+          <div class="attach-meta">
+            <strong>Photo attached</strong>
+            <span id="attach-info">Sent to a vision model with your message</span>
+          </div>
+          <button class="icon-btn" id="attach-remove" type="button" aria-label="Remove photo" title="Remove photo">
+            <svg class="icon"><use href="#i-close"></use></svg>
+          </button>
+        </div>
+
+        <div class="composer" id="composer">
+          <button class="composer-tool" id="prompt-btn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-label="Saved prompts" title="Saved prompts">
+            <svg class="icon"><use href="#i-sparkles"></use></svg>
+          </button>
+          <button class="composer-tool" id="mic-btn" type="button" aria-label="Dictate a question" title="Dictate a question" aria-pressed="false" hidden>
+            <svg class="icon"><use href="#i-mic"></use></svg>
+          </button>
+          <button class="composer-tool" id="image-btn" type="button" aria-label="Attach a photo of a question" title="Attach a photo of a question">
+            <svg class="icon"><use href="#i-image"></use></svg>
+          </button>
+          <input class="sr-only" id="image-file" type="file" accept="image/png,image/jpeg,image/webp" tabindex="-1" />
+          <label class="sr-only" for="composer-input">Message Nova</label>
+          <textarea
+            id="composer-input"
+            class="composer-input"
+            rows="1"
+            placeholder="Ask me anything…"
+            autocomplete="off"
+            spellcheck="true"
+            maxlength="1200"
+          ></textarea>
+          <button class="send-btn" id="send-btn" type="button" aria-label="Send message" disabled>
+            <svg class="icon ico-send"><use href="#i-send"></use></svg>
+            <svg class="icon ico-stop"><use href="#i-stop"></use></svg>
+          </button>
+        </div>
+        <div class="composer-meta">
+          <span class="hint"><kbd>Enter</kbd> to send · <kbd>Shift</kbd>+<kbd>Enter</kbd> new line · <kbd>Ctrl</kbd>+<kbd>K</kbd> new chat</span>
+          <span class="counter" id="counter" aria-hidden="true">0/1200</span>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ── AI settings ────────────────────────────────────────── -->
+  <dialog class="app-dialog ai-dialog" id="ai-dialog" aria-labelledby="ai-dialog-title">
+    <form class="ai-form" id="ai-form">
+      <header class="dialog-head">
+        <div>
+          <h2 id="ai-dialog-title">AI settings</h2>
+          <p class="dialog-sub">Google AI Studio (Gemini) is the default — its free tier needs no card.</p>
+        </div>
+        <button class="icon-btn" id="ai-close" type="button" aria-label="Close settings">
+          <svg class="icon"><use href="#i-close"></use></svg>
+        </button>
+      </header>
+
+      <div class="ai-dialog-body">
+        <div class="field">
+          <label class="field-label" for="ai-provider">Provider</label>
+          <select class="field-input" id="ai-provider">
+            <option value="gemini" selected>Google AI Studio (Gemini · free tier)</option>
+            <option value="custom">Custom OpenAI-compatible endpoint</option>
+          </select>
+        </div>
+
+        <div class="field" id="ai-key-field">
+          <label class="field-label" for="ai-key" id="ai-key-label">Google AI Studio API key</label>
+          <div class="key-row">
+            <input class="field-input" id="ai-key" type="password" placeholder="AIza… or AQ…" autocomplete="off" spellcheck="false" />
+            <button class="text-btn" id="ai-reveal" type="button" aria-pressed="false">Show</button>
+          </div>
+          <span class="field-hint" id="ai-key-hint">
+            Free, no credit card. Create a key at
+            <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">aistudio.google.com/apikey</a>.
+            It is saved only in this browser and sent only to Google.
+          </span>
+        </div>
+
+        <details class="help-toggle" id="ai-help">
+          <summary>How to get a free API key?</summary>
+          <ol class="help-steps">
+            <li>
+              Open
+              <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">Google AI Studio</a>
+              and sign in with any Google account.
+            </li>
+            <li>
+              Accept the terms if asked, then click <strong>Create API key</strong> and pick or create a
+              Google Cloud project in the dialog.
+            </li>
+            <li>
+              Copy the key — it starts with <code>AQ.</code> (older ones start with <code>AIza</code>) — paste it
+              above and press <strong>Save</strong>. No credit card is needed for the free tier.
+            </li>
+          </ol>
+        </details>
+
+        <div class="field" id="ai-base-field" hidden>
+          <label class="field-label" for="ai-base-url">Base URL</label>
+          <input class="field-input" id="ai-base-url" type="url" placeholder="https://api.example.com/v1" autocomplete="off" spellcheck="false" />
+          <span class="field-hint">Any OpenAI-compatible <code>/chat/completions</code> endpoint. Requests stay in your browser.</span>
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="ai-model" id="ai-model-label">Default model</label>
+          <select class="field-input" id="ai-model-select" aria-label="Gemini model"></select>
+          <input class="field-input" id="ai-model" list="ai-models" placeholder="gemini-3.5-flash-lite" autocomplete="off" spellcheck="false" hidden />
+          <datalist id="ai-models"></datalist>
+          <div class="model-quick" id="model-quick" role="group" aria-label="Quick model picks"></div>
+          <span class="field-hint" id="ai-model-hint">Free-tier models are rate limited per minute; Gemini 3.5 Flash-Lite is the fastest.</span>
+        </div>
+
+        <label class="check-field" for="ai-steps">
+          <input id="ai-steps" type="checkbox" />
+          <span>
+            <strong>Show every step</strong>
+            <small>Work through calculations line by line — useful when method marks matter.</small>
+          </span>
+        </label>
+
+        <p class="ai-note">
+          Gemini keys are free and stay in this browser, unless this site's server holds one already.
+          Without a usable key, Nova answers with its built-in offline engine.
+        </p>
+
+        <p class="ai-status" id="ai-status" role="status" aria-live="polite"></p>
+      </div>
+
+      <footer class="dialog-foot">
+        <button class="text-btn danger" id="ai-remove" type="button">Remove key</button>
+        <span class="ai-foot-actions">
+          <button class="text-btn" id="ai-test" type="button">Test key</button>
+          <button class="primary-btn" id="ai-save" type="submit">Save</button>
+        </span>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- ── Prompt library ─────────────────────────────────────── -->
+  <dialog class="app-dialog prompt-dialog" id="prompt-dialog" aria-labelledby="prompt-dialog-title">
+    <section class="prompt-view" id="prompt-library-view">
+      <header class="dialog-head">
+        <div>
+          <h2 id="prompt-dialog-title">Prompt library</h2>
+          <p class="dialog-sub">Reusable prompts, organised by what you are doing.</p>
+        </div>
+        <button class="icon-btn" id="prompt-close" type="button" aria-label="Close prompt library">
+          <svg class="icon"><use href="#i-close"></use></svg>
+        </button>
+      </header>
+
+      <div class="prompt-tools">
+        <div class="search-field">
+          <svg class="icon" aria-hidden="true"><use href="#i-search"></use></svg>
+          <input class="search-input" id="prompt-search" type="search" placeholder="Search prompts" aria-label="Search prompts" autocomplete="off" spellcheck="false" />
+        </div>
+        <button class="primary-btn" id="prompt-new" type="button">
+          <svg class="icon"><use href="#i-plus"></use></svg>
+          <span>New prompt</span>
+        </button>
+      </div>
+
+      <div class="cat-chips" id="prompt-cats" role="group" aria-label="Filter by category"></div>
+
+      <div class="prompt-list" id="prompt-list"></div>
+      <div class="empty-state" id="prompt-empty" hidden>
+        <p class="empty-title">Nothing here yet</p>
+        <p class="empty-text">Save a prompt you use often, or clear the search.</p>
+      </div>
+
+      <footer class="dialog-foot">
+        <span class="prompt-count" id="prompt-count"></span>
+        <button class="text-btn" id="prompt-reset" type="button">Restore defaults</button>
+      </footer>
+    </section>
+
+    <section class="prompt-view" id="prompt-editor-view" hidden>
+      <header class="dialog-head">
+        <div>
+          <h2 id="prompt-editor-title">New prompt</h2>
+          <p class="dialog-sub">Title it clearly so it is easy to find later.</p>
+        </div>
+        <button class="icon-btn" id="prompt-back" type="button" aria-label="Back to prompt library">
+          <svg class="icon"><use href="#i-close"></use></svg>
+        </button>
+      </header>
+
+      <div class="prompt-editor">
+        <div class="field">
+          <label class="field-label" for="prompt-title">Title</label>
+          <input class="field-input" id="prompt-title" maxlength="80" placeholder="e.g. Explain a stack trace" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label class="field-label" for="prompt-category">Category</label>
+          <select class="field-input" id="prompt-category"></select>
+        </div>
+        <div class="field">
+          <label class="field-label" for="prompt-description">Description</label>
+          <input class="field-input" id="prompt-description" maxlength="160" placeholder="One line on when to use it" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label class="field-label" for="prompt-body">Prompt</label>
+          <textarea class="field-input field-textarea" id="prompt-body" rows="7" placeholder="Write the prompt text that gets inserted into the chat…"></textarea>
+        </div>
+        <p class="form-error" id="prompt-error" role="status" aria-live="polite"></p>
+      </div>
+
+      <footer class="dialog-foot">
+        <button class="text-btn" id="prompt-cancel" type="button">Cancel</button>
+        <button class="primary-btn" id="prompt-save" type="button">Save prompt</button>
+      </footer>
+    </section>
+  </dialog>
+
+  <!-- ── Study hub ──────────────────────────────────────────── -->
+  <dialog class="app-dialog study-dialog" id="study-dialog" aria-labelledby="study-title">
+    <div class="study-shell">
+      <header class="dialog-head">
+        <div>
+          <h2 id="study-title">Study hub</h2>
+          <p class="dialog-sub">Flashcards, practice exams, notes and progress — all kept in this browser.</p>
+        </div>
+        <button class="icon-btn" id="study-close" type="button" aria-label="Close study hub">
+          <svg class="icon"><use href="#i-close"></use></svg>
+        </button>
+      </header>
+
+      <nav class="study-tabs" id="study-tabs" role="tablist" aria-label="Study tools">
+        <button class="study-tab is-active" type="button" data-tab="deck" role="tab" aria-selected="true" id="study-tab-deck">
+          Deck <span class="tab-badge" id="study-due-badge" hidden></span>
+        </button>
+        <button class="study-tab" type="button" data-tab="review" role="tab" aria-selected="false">Review</button>
+        <button class="study-tab" type="button" data-tab="exam" role="tab" aria-selected="false">Exam</button>
+        <button class="study-tab" type="button" data-tab="notes" role="tab" aria-selected="false">Notes</button>
+        <button class="study-tab" type="button" data-tab="progress" role="tab" aria-selected="false">Progress</button>
+      </nav>
+
+      <div class="study-body">
+        <!-- ── Deck ──────────────────────────────────────────── -->
+        <section class="study-pane is-active" data-pane="deck">
+          <div class="study-card">
+            <h3 class="study-h">Make flashcards</h3>
+            <p class="study-p">Nova turns a conversation into question-and-answer cards, then schedules them for review.</p>
+            <div class="study-row">
+              <button class="primary-btn" id="deck-from-chat" type="button">Cards from this chat</button>
+            </div>
+            <div class="study-grid">
+              <label class="field">
+                <span class="field-label">Topic</span>
+                <input class="field-input" id="deck-topic" maxlength="40" placeholder="e.g. Deadlocks" autocomplete="off" />
+              </label>
+              <label class="field">
+                <span class="field-label">Cards</span>
+                <select class="field-input" id="deck-count">
+                  <option>6</option>
+                  <option selected>10</option>
+                  <option>15</option>
+                </select>
+              </label>
+            </div>
+            <div class="study-row">
+              <button class="text-btn" id="deck-generate" type="button">Generate from topic</button>
+              <span class="study-status" id="deck-status" role="status" aria-live="polite"></span>
+            </div>
+          </div>
+
+          <details class="study-card study-details">
+            <summary class="study-summary">Add a card by hand</summary>
+            <div class="study-grid">
+              <label class="field">
+                <span class="field-label">Question</span>
+                <input class="field-input" id="card-front" maxlength="400" placeholder="What is a deadlock?" autocomplete="off" />
+              </label>
+              <label class="field">
+                <span class="field-label">Answer</span>
+                <input class="field-input" id="card-back" maxlength="1200" placeholder="Two processes each waiting for a lock the other holds." autocomplete="off" />
+              </label>
+            </div>
+            <div class="study-row">
+              <button class="text-btn" id="card-add" type="button">Add card</button>
+            </div>
+          </details>
+
+          <div class="study-card">
+            <div class="study-card-head">
+              <h3 class="study-h">Your deck <span class="study-count" id="deck-total"></span></h3>
+            </div>
+            <div class="deck-topics" id="deck-topics"></div>
+            <div class="deck-list" id="deck-list"></div>
+            <p class="study-empty" id="deck-empty">No cards yet — generate some above, or add one by hand.</p>
+            <div class="study-row study-row-end">
+              <button class="text-btn" id="deck-export" type="button">Export CSV (Anki / Quizlet)</button>
+              <button class="text-btn danger" id="deck-clear" type="button">Clear deck</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ── Review ────────────────────────────────────────── -->
+        <section class="study-pane" data-pane="review" hidden>
+          <div class="study-row study-row-between">
+            <span class="study-count" id="review-count">0 due</span>
+            <button class="text-btn" id="review-restart" type="button" hidden>Restart</button>
+          </div>
+          <div class="review-card" id="review-card">
+            <p class="review-topic" id="review-topic"></p>
+            <p class="review-front" id="review-front">Nothing due — come back later.</p>
+            <p class="review-back" id="review-back" hidden></p>
+            <button class="text-btn" id="review-flip" type="button" hidden>Show answer</button>
+          </div>
+          <div class="review-grades" id="review-grades" hidden>
+            <button type="button" data-grade="again">Again<small>10 min</small></button>
+            <button type="button" data-grade="hard">Hard<small>shorter</small></button>
+            <button type="button" data-grade="good">Good<small>normal</small></button>
+            <button type="button" data-grade="easy">Easy<small>longer</small></button>
+          </div>
+          <p class="study-p" id="review-note"></p>
+        </section>
+
+        <!-- ── Exam ──────────────────────────────────────────── -->
+        <section class="study-pane" data-pane="exam" hidden>
+          <div class="study-card">
+            <h3 class="study-h">Practice exam</h3>
+            <p class="study-p">A timed paper with a hidden mark scheme. Write your answers, then ask Nova to mark them.</p>
+            <div class="study-grid">
+              <label class="field">
+                <span class="field-label">Subject or topic</span>
+                <input class="field-input" id="exam-topic" maxlength="80" placeholder="e.g. Operating systems: memory" autocomplete="off" />
+              </label>
+              <label class="field">
+                <span class="field-label">Questions</span>
+                <select class="field-input" id="exam-count">
+                  <option>3</option>
+                  <option selected>5</option>
+                  <option>8</option>
+                </select>
+              </label>
+            </div>
+            <div class="study-row">
+              <button class="primary-btn" id="exam-generate" type="button">Generate paper</button>
+              <span class="study-status" id="exam-status" role="status" aria-live="polite"></span>
+            </div>
+          </div>
+
+          <div class="exam-paper" id="exam-paper" hidden>
+            <div class="exam-head">
+              <span id="exam-title">Practice paper</span>
+              <span class="exam-timer" id="exam-timer">00:00</span>
+            </div>
+            <div id="exam-questions"></div>
+            <div class="study-row study-row-between">
+              <button class="text-btn" id="exam-scheme" type="button">Show mark scheme</button>
+              <button class="primary-btn" id="exam-mark" type="button">Mark my answers</button>
+            </div>
+            <div class="exam-result" id="exam-result" hidden></div>
+          </div>
+        </section>
+
+        <!-- ── Notes ─────────────────────────────────────────── -->
+        <section class="study-pane" data-pane="notes" hidden>
+          <div class="study-card">
+            <h3 class="study-h">Notes from this chat</h3>
+            <p class="study-p">Condense the conversation into definitions, formulas and likely exam questions.</p>
+            <button class="primary-btn" id="notes-from-chat" type="button">Make revision notes</button>
+            <div class="notes-preview" id="notes-preview"></div>
+          </div>
+
+          <div class="study-card">
+            <h3 class="study-h">Import your notes</h3>
+            <div class="study-grid">
+              <label class="field">
+                <span class="field-label">Title</span>
+                <input class="field-input" id="note-title" maxlength="100" placeholder="Week 4 — Memory management" autocomplete="off" />
+              </label>
+              <label class="field">
+                <span class="field-label">Subject</span>
+                <select class="field-input" id="note-subject"></select>
+              </label>
+            </div>
+            <label class="field">
+              <span class="field-label">Notes text</span>
+              <textarea class="field-input field-textarea" id="note-text" rows="5" placeholder="Paste lecture notes, a summary or a textbook section…"></textarea>
+            </label>
+            <div class="study-row">
+              <button class="text-btn" id="note-add" type="button">Save notes</button>
+              <span class="study-status" id="note-status" role="status" aria-live="polite"></span>
+            </div>
+          </div>
+
+          <div class="study-card">
+            <div class="study-card-head">
+              <h3 class="study-h">My notes <span class="study-count" id="notes-count"></span></h3>
+              <label class="check-inline" for="notes-use">
+                <input id="notes-use" type="checkbox" />
+                <span>Use in replies</span>
+              </label>
+            </div>
+            <div id="notes-list"></div>
+          </div>
+
+          <div class="study-card">
+            <h3 class="study-h">Formula sheet</h3>
+            <p class="study-p">Pull every equation out of this conversation into one printable list.</p>
+            <div class="study-row">
+              <button class="text-btn" id="formulas-extract" type="button">Extract from this chat</button>
+            </div>
+            <div id="formulas-list"></div>
+          </div>
+
+          <div class="study-card">
+            <h3 class="study-h">Maths plotter</h3>
+            <div class="study-row">
+              <input class="field-input" id="plot-input" placeholder="y = x^2 - 2x + 1" autocomplete="off" spellcheck="false" />
+              <button class="primary-btn" id="plot-draw" type="button">Plot</button>
+            </div>
+            <canvas class="plot-canvas" id="plot-canvas" height="220"></canvas>
+            <p class="study-status" id="plot-status"></p>
+          </div>
+        </section>
+
+        <!-- ── Progress ──────────────────────────────────────── -->
+        <section class="study-pane" data-pane="progress" hidden>
+          <div class="stat-grid">
+            <div class="stat"><span id="stat-streak">0</span><small>day streak</small></div>
+            <div class="stat"><span id="stat-answers">0</span><small>replies today</small></div>
+            <div class="stat"><span id="stat-cards">0</span><small>cards reviewed</small></div>
+            <div class="stat"><span id="stat-total">0</span><small>cards in deck</small></div>
+          </div>
+          <div class="study-card">
+            <h3 class="study-h">This week</h3>
+            <div class="week-chart" id="week-chart"></div>
+            <div class="study-row study-row-end">
+              <button class="text-btn danger" id="stats-reset" type="button">Reset progress</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- ── First-run setup: free Gemini key ────────────────────── -->
+  <dialog class="app-dialog setup-dialog" id="setup-dialog" aria-labelledby="setup-title">
+    <form class="setup-form" id="setup-form">
+      <header class="dialog-head">
+        <div>
+          <h2 id="setup-title">Start with Google AI Studio</h2>
+          <p class="dialog-sub">A free Gemini key takes about two minutes — no credit card.</p>
+        </div>
+        <button class="icon-btn" id="setup-close" type="button" aria-label="Close setup">
+          <svg class="icon"><use href="#i-close"></use></svg>
+        </button>
+      </header>
+
+      <div class="setup-body">
+        <ol class="setup-steps">
+          <li>
+            <span class="setup-num" aria-hidden="true">1</span>
+            <div>
+              <p class="setup-step-title">Open Google AI Studio</p>
+              <p class="setup-step-text">Sign in with any Google account, then open the API keys page.</p>
+              <a class="setup-link" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">
+                Open aistudio.google.com/apikey
+              </a>
+            </div>
+          </li>
+          <li>
+            <span class="setup-num" aria-hidden="true">2</span>
+            <div>
+              <p class="setup-step-title">Create an API key</p>
+              <p class="setup-step-text">
+                Accept the terms if asked, click <strong>Create API key</strong>, and pick or create a Google
+                Cloud project in the dialog.
+              </p>
+            </div>
+          </li>
+          <li>
+            <span class="setup-num" aria-hidden="true">3</span>
+            <div>
+              <p class="setup-step-title">Paste it here</p>
+              <p class="setup-step-text">Copy the key, paste it below and save — the chat input is ready right after.</p>
+            </div>
+          </li>
+        </ol>
+
+        <div class="field">
+          <label class="field-label" for="setup-key">Your Gemini API key</label>
+          <div class="key-row">
+            <input class="field-input" id="setup-key" type="password" placeholder="AIza… or AQ…" autocomplete="off" spellcheck="false" />
+            <button class="text-btn" id="setup-reveal" type="button" aria-pressed="false">Show</button>
+          </div>
+          <span class="field-hint">Stored only in this browser. Nova never sends it anywhere except Google's API.</span>
+        </div>
+
+        <p class="ai-status" id="setup-status" role="status" aria-live="polite"></p>
+      </div>
+
+      <footer class="dialog-foot">
+        <button class="text-btn" id="setup-skip" type="button">Use built-in engine</button>
+        <button class="primary-btn" id="setup-save" type="submit">Save &amp; start chatting</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- ── Confirmation ───────────────────────────────────────── -->
+  <dialog class="app-dialog confirm-dialog" id="confirm-dialog" aria-labelledby="confirm-title">
+    <div class="confirm-box">
+      <h2 id="confirm-title">Delete conversation?</h2>
+      <p id="confirm-text">This cannot be undone.</p>
+      <div class="confirm-actions">
+        <button class="text-btn" id="confirm-cancel" type="button">Cancel</button>
+        <button class="primary-btn danger" id="confirm-ok" type="button">Delete</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <script defer src="./vendor/katex/katex.min.js"></script>
+  <script type="module" src="./app.js?v=20"></script>
+</body>
+</html>

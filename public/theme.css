@@ -1,0 +1,608 @@
+/* ==================================================================
+   Nova — "Ink & violet" visual system
+   Loaded last. Owns the palette, the scales, and the calm surface
+   language: flat panels, one accent, one blur, wider reading measure.
+   ================================================================== */
+
+/* ------------------------------------------------------------------ */
+/* Tokens                                                              */
+/* ------------------------------------------------------------------ */
+
+:root {
+  color-scheme: dark;
+
+  /* Radius scale (four steps + pill) */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 20px;
+  --r-shell: 26px;
+  --r-pill: 999px;
+
+  /* Type scale (seven steps) */
+  --fs-xs: 0.7rem;
+  --fs-sm: 0.76rem;
+  --fs-base: 0.84rem;
+  --fs-md: 0.95rem;
+  --fs-lg: 1.08rem;
+  --fs-xl: 1.3rem;
+  --fs-2xl: 1.6rem;
+
+  /* One accent, one ink for text on that accent */
+  --accent: #8f4bff;
+  --accent-ink: #ffffff;
+  --accent-2: #c4b5fd;
+  --accent-grad: linear-gradient(135deg, #a879ff, #7a3ff2);
+
+  --bg: #0b0d12;
+  --bg-2: #11141b;
+  --panel: #10131a;
+  --panel-strong: #151922;
+  --surface: #151922;
+  --surface-hover: #1b2029;
+  --border: rgba(242, 244, 234, 0.1);
+  --border-strong: rgba(242, 244, 234, 0.18);
+
+  --text: #f2f4ea;
+  --text-soft: #c3c9b8;
+  --muted: #8f9786;
+
+  --bubble-bot: #12161d;
+  --code-bg: #080a0e;
+  --shadow: 0 24px 60px -30px rgba(0, 0, 0, 0.85);
+  --ring: rgba(143, 75, 255, 0.32);
+  --scroll: rgba(242, 244, 234, 0.18);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --accent: #6b3fd4;
+  --accent-ink: #ffffff;
+  --accent-2: #5b21b6;
+  --accent-grad: linear-gradient(135deg, #8a5cf0, #5b21b6);
+
+  --bg: #f3f1e8;
+  --bg-2: #fbfaf4;
+  --panel: #ffffff;
+  --panel-strong: #ffffff;
+  --surface: #ffffff;
+  --surface-hover: #f2f0e5;
+  --border: rgba(24, 28, 18, 0.12);
+  --border-strong: rgba(24, 28, 18, 0.2);
+
+  --text: #14170f;
+  --text-soft: #43483c;
+  --muted: #5b6252;
+
+  --bubble-bot: #ffffff;
+  --code-bg: #0d1117;
+  --shadow: 0 24px 60px -34px rgba(24, 39, 20, 0.28);
+  --ring: rgba(107, 63, 212, 0.3);
+  --scroll: rgba(24, 28, 18, 0.22);
+}
+
+/* ------------------------------------------------------------------ */
+/* Background: one quiet wash instead of three auroras                 */
+/* ------------------------------------------------------------------ */
+
+body {
+  background: var(--bg);
+  background-image: radial-gradient(
+    1000px 640px at 12% -12%,
+    color-mix(in srgb, var(--accent) 11%, transparent),
+    transparent 62%
+  );
+}
+
+[data-theme="light"] body {
+  background-image: radial-gradient(
+    1000px 640px at 10% -12%,
+    color-mix(in srgb, var(--accent) 10%, transparent),
+    transparent 62%
+  );
+}
+
+body::before,
+.panel-glow,
+.app::after {
+  display: none;
+}
+
+::selection {
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 34%, transparent);
+}
+
+/* ------------------------------------------------------------------ */
+/* Surfaces: flat panels, one blur                                     */
+/* ------------------------------------------------------------------ */
+
+.app {
+  background: var(--panel);
+  backdrop-filter: none;
+  border-color: var(--border);
+}
+
+.panel {
+  background: var(--bg-2);
+  backdrop-filter: none;
+}
+
+.chat-head {
+  background: color-mix(in srgb, var(--bg-2) 92%, transparent);
+  backdrop-filter: blur(10px);
+}
+
+.composer,
+.chip,
+.msg-action,
+.icon-btn,
+.text-btn,
+.model-popover,
+.prompt-quick,
+.study-card,
+.chat-item,
+.app-dialog {
+  backdrop-filter: none;
+}
+
+.composer {
+  background: var(--surface);
+  border-color: var(--border-strong);
+}
+
+.composer:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.app-dialog::backdrop {
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+}
+
+/* ------------------------------------------------------------------ */
+/* Accent: gradients only survive on the brand mark                    */
+/* ------------------------------------------------------------------ */
+
+.brand-name {
+  color: var(--text);
+  background: none;
+  -webkit-text-fill-color: currentColor;
+}
+
+.brand-mark {
+  background: var(--accent-grad);
+  box-shadow: 0 12px 26px -16px color-mix(in srgb, var(--accent) 80%, transparent);
+}
+
+.primary-btn,
+.send-btn,
+.skip-link {
+  color: var(--accent-ink);
+  background: var(--accent);
+  background-image: none;
+  box-shadow: 0 8px 20px -12px color-mix(in srgb, var(--accent) 75%, transparent);
+}
+
+.primary-btn:hover,
+.send-btn:hover:not(:disabled) {
+  box-shadow: 0 12px 26px -12px color-mix(in srgb, var(--accent) 85%, transparent);
+}
+
+.foot-badge,
+.tab-badge {
+  color: var(--accent-ink);
+  background: var(--accent);
+}
+
+.week-bar {
+  background: var(--accent);
+}
+
+.study-tab.is-active,
+.cat-chip.is-active {
+  border-color: var(--accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+a {
+  color: var(--accent-2);
+}
+
+/* ------------------------------------------------------------------ */
+/* Messages: flat bubbles, wider measure, quieter metadata             */
+/* ------------------------------------------------------------------ */
+
+.bubble {
+  max-width: 74ch;
+  padding: 13px 16px;
+  font-size: var(--fs-md);
+  line-height: 1.66;
+  color: var(--text);
+  background: var(--bubble-bot);
+  background-image: none;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  border-top-left-radius: var(--r-sm);
+}
+
+.msg-user .bubble {
+  color: var(--accent-ink);
+  background: var(--accent);
+  background-image: none;
+  border-color: transparent;
+  border-radius: var(--r-lg);
+  border-top-right-radius: var(--r-sm);
+  box-shadow: none;
+}
+
+.msg-user .bubble strong,
+.msg-user .bubble a,
+.msg-user .bubble h1,
+.msg-user .bubble h2,
+.msg-user .bubble h3 {
+  color: var(--accent-ink);
+}
+
+.msg-user .bubble code {
+  color: var(--accent-ink);
+  background: color-mix(in srgb, var(--accent-ink) 12%, transparent);
+  border-color: color-mix(in srgb, var(--accent-ink) 22%, transparent);
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  font-size: var(--fs-sm);
+}
+
+.bubble-meta {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Model name on hover only — it is useful, not decorative. */
+@media (hover: hover) {
+  .msg .via {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+
+  .msg:hover .via,
+  .msg:focus-within .via {
+    opacity: 1;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Starter board: the first screen is a designed choice, not chips     */
+/* ------------------------------------------------------------------ */
+
+.starter-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  max-width: 560px;
+  margin-top: 12px;
+}
+
+.starter-card {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px 14px 12px 26px;
+  text-align: start;
+  color: inherit;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  cursor: pointer;
+  position: relative;
+  transition: background 0.16s ease, border-color 0.16s ease, transform 0.16s var(--ease);
+}
+
+.starter-card::before {
+  content: "";
+  position: absolute;
+  left: 12px;
+  top: 17px;
+  width: 6px;
+  height: 6px;
+  background: var(--accent);
+  border-radius: var(--r-pill);
+}
+
+.starter-card strong {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.starter-card span {
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.starter-card:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 640px) {
+  .starter-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Code, tables, quotes: their own surface                             */
+/* ------------------------------------------------------------------ */
+
+.bubble-content pre,
+.bubble-content .code-block {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+}
+
+.bubble-content pre {
+  box-shadow: inset -12px 0 18px -18px rgba(0, 0, 0, 0.9);
+}
+
+.bubble-content table {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+
+.bubble-content th {
+  background: var(--surface);
+}
+
+[data-theme="light"] .bubble-content th {
+  background: #f6f4ec;
+}
+
+.bubble-content blockquote {
+  border-left-width: 3px;
+  border-radius: 0 var(--r-md) var(--r-md) 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* Study hub: same tokens, better rhythm                               */
+/* ------------------------------------------------------------------ */
+
+.study-tab {
+  min-height: 44px;
+}
+
+.study-card {
+  border-radius: var(--r-lg);
+}
+
+.stat span,
+.exam-timer,
+.counter,
+.chat-item-meta,
+.week-day em {
+  font-variant-numeric: tabular-nums;
+}
+
+.week-chart {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 5px;
+}
+
+.week-bar {
+  min-height: 3px;
+  border-radius: var(--r-sm) var(--r-sm) 2px 2px;
+}
+
+.study-tab:focus-visible,
+.deck-card:focus-visible,
+.starter-card:focus-visible,
+.review-grades button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Icons: three sizes, one weight                                      */
+/* ------------------------------------------------------------------ */
+
+.icon {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.8;
+}
+
+.msg-action .icon,
+.mini-btn .icon,
+.chat-item-act .icon,
+.foot-btn .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.icon-btn .icon,
+.composer-tool .icon,
+.send-btn .icon {
+  width: 17px;
+  height: 17px;
+}
+
+.brand-mark svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Motion: fewer decorations, honest reduced-motion support            */
+/* ------------------------------------------------------------------ */
+
+.brand-mark,
+.pill.is-live .dot {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Touch targets                                                       */
+/* ------------------------------------------------------------------ */
+
+@media (pointer: coarse) {
+  .msg-action,
+  .chat-item-act,
+  .mini-btn {
+    min-width: 36px;
+    min-height: 36px;
+  }
+
+  .icon-btn {
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .study-tab {
+    min-height: 46px;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Scrollbars                                                          */
+/* ------------------------------------------------------------------ */
+
+* {
+  scrollbar-color: var(--scroll) transparent;
+}
+
+/* ------------------------------------------------------------------ */
+/* Small-screen measure                                                */
+/* ------------------------------------------------------------------ */
+
+@media (max-width: 980px) {
+  .app {
+    background: var(--bg);
+  }
+
+  .bubble {
+    max-width: 100%;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Compact header on phones                                            */
+/* ------------------------------------------------------------------ */
+
+@media (max-width: 700px) {
+  .chat-head {
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  .chat-identity,
+  .chat-title {
+    min-width: 0;
+  }
+
+  .chat-title {
+    max-width: 108px;
+  }
+
+  .chat-name,
+  .engine-pill span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .engine-pill {
+    max-width: 128px;
+  }
+
+  .model-btn {
+    max-width: 104px;
+  }
+
+  .model-btn-label {
+    font-size: var(--fs-xs);
+  }
+
+  .avatar {
+    width: 30px;
+    height: 30px;
+  }
+
+  .msg {
+    grid-template-columns: 30px minmax(0, 1fr);
+  }
+}
+
+/* Very narrow: the model button already names the provider. */
+@media (max-width: 560px) {
+  .engine-pill {
+    display: none;
+  }
+
+  .chat-title {
+    max-width: 132px;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Icons: violet, except where they sit on the accent                  */
+/* ------------------------------------------------------------------ */
+
+:root {
+  --icon: #b18cff;
+}
+
+[data-theme="light"] {
+  --icon: #6b3fd4;
+}
+
+.icon {
+  color: var(--icon);
+}
+
+/* Solid accent fills need the dark ink to stay legible. */
+.brand-mark svg,
+.primary-btn .icon,
+.send-btn .icon,
+.new-chat-btn .icon,
+.chat-item.is-active .chat-item-icon .icon {
+  color: var(--accent-ink);
+}
+
+/* Search sits inside a field rather than a button, but stays violet. */
+.search-field .icon {
+  color: var(--icon);
+}
+
+/* State colours keep their meaning. */
+.fav-btn.is-fav .icon {
+  color: #fbbf24;
+}
+
+.chat-item-act[data-act="delete"]:hover .icon,
+.msg-action[data-action="delete"]:hover .icon {
+  color: currentColor;
+}
