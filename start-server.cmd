@@ -46,7 +46,7 @@ if errorlevel 1 (
 
 rem ---- Start the static server in its own window ------------------
 echo  Starting the static server in its own window...
-echo  Note: a plain static server has no API proxy, so AI settings will ask for a key.
+echo  Note: a plain static server has no API proxy, so live AI is unavailable and only the built-in engine answers.
 start "Nova Server" /min python -m http.server %PORT% --bind 127.0.0.1 --directory public
 
 :wait

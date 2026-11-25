@@ -1,13 +1,9 @@
 /**
  * ai.js — model client
  *
- * Google AI Studio (Gemini) is the provider: a free-tier key from
- * https://aistudio.google.com/apikey is enough to chat. A custom
- * OpenAI-compatible endpoint can still be added, and the Worker can hold a
- * Gemini key server-side so visitors never have to paste one.
- *
- * Keys never leave this device except in the header of the request to the
- * provider the user picked.
+ * Google AI Studio (Gemini) runs on this site's shared key, held by the
+ * Worker, so a visitor never sees it and never pastes one. An optional custom
+ * OpenAI-compatible endpoint keeps its own key in this browser.
  */
 
 import { STUDY_RULES } from "./study-prompt.js";
@@ -15,15 +11,8 @@ import { STUDY_RULES } from "./study-prompt.js";
 const STORE_KEY = "nova.ai.v2";
 
 /**
- * A plain mirror of the Gemini key. `nova.ai.v2` is the real store; this key
- * exists so `localStorage.gemini_api_key` can also be filled in by hand (or
- * read by other tooling) without digging through the settings object.
- */
-const GEMINI_MIRROR_KEY = "gemini_api_key";
-
-/**
- * Server-side key. With a GEMINI_API_KEY secret on the Worker, Gemini works
- * with no key in the browser. A key the user pastes into AI settings wins.
+ * Server-side key. GEMINI_API_KEY on the Worker is the only Gemini credential
+ * this app uses; the browser never holds one.
  */
 const SERVER = { checked: false, gemini: false };
 
@@ -47,8 +36,8 @@ export function serverHasProvider(providerId = "gemini") {
   return providerId === "gemini" && SERVER.gemini;
 }
 
-function viaServer(provider, key) {
-  return provider === "gemini" && !key && SERVER.gemini;
+function viaServer(provider) {
+  return provider === "gemini" && SERVER.gemini;
 }
 
 export const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta";
@@ -60,9 +49,6 @@ export const PROVIDERS = {
     short: "Gemini",
     badge: "Google AI Studio (Free Tier)",
     baseUrl: GEMINI_BASE,
-    keyUrl: "https://aistudio.google.com/apikey",
-    keyPrefix: "AIza",
-    keyHint: "AIza… or AQ…",
     defaultModel: "gemini-3.5-flash-lite",
     modelsQuery: "?pageSize=50",
     free: true,
@@ -72,8 +58,6 @@ export const PROVIDERS = {
     label: "Custom endpoint",
     short: "Custom",
     baseUrl: "",
-    keyUrl: "",
-    keyPrefix: "",
     keyHint: "your API key",
     defaultModel: "",
     modelsQuery: "",
@@ -132,34 +116,28 @@ const STATUS_HELP = {
   503: "The model is busy right now. Try again or pick another model.",
 };
 
-/** The two Gemini failures a copied key usually produces, explained. */
-function geminiKeyNote(detail) {
-  if (/access_token_type_unsupported|expected oauth2 access token/i.test(detail)) {
-    return "That key is an Agent Platform / OAuth-style credential, not a Gemini Developer API key. Create one at aistudio.google.com/apikey with the Gemini API selected.";
-  }
-  if (/service_disabled|has not been used in project|api is disabled/i.test(detail)) {
-    return "The Gemini API is not enabled for that key's Google Cloud project. Enable it in the Cloud console, or make a new key in AI Studio.";
-  }
-  return "";
-}
+/**
+ * Gemini runs on this site's key, so a visitor can only retry, pick another
+ * model, or use the built-in engine — there is no key of theirs to fix.
+ */
+const GEMINI_STATUS_HELP = {
+  400: "That request could not be processed. Try another Gemini model.",
+  401: "Nova's AI service refused that request. Try again later, or keep going with the built-in engine.",
+  403: "That model is not available with this site's access right now. Pick another Gemini model.",
+  404: "That Gemini model is not available right now. Pick another model from the list.",
+  408: "Nova's AI service timed out. Try again.",
+  413: "The conversation is too long for this model. Start a new chat or pick a model with a larger context.",
+  429: "Nova's AI service is rate limited right now. Wait a few seconds and try again.",
+  502: "Live AI is temporarily unavailable. Try again, or keep going with the built-in engine.",
+  503: "Gemini is busy right now. Try again or pick another model.",
+};
 
 function friendly(label, status, detail, providerId = "") {
-  if (status === 429 && providerId === "gemini") {
-    return (
-      "Google's free tier is rate limited right now (429). Free keys allow a limited number of " +
-      "requests per minute — wait a few seconds, then send again."
-    );
-  }
-  if (providerId === "gemini" && /api key not valid|api_key_invalid|api key expired/i.test(detail)) {
-    return "Google rejected that API key. Copy it again from aistudio.google.com/apikey.";
-  }
-  if (providerId === "gemini" && (status === 401 || status === 403)) {
-    return (
-      geminiKeyNote(detail) ||
-      (detail
-        ? `Google rejected that key: ${detail}`
-        : "Google rejected that key. Check that it is a Gemini API key from aistudio.google.com/apikey.")
-    );
+  if (providerId === "gemini") {
+    const geminiHelp =
+      GEMINI_STATUS_HELP[status] ||
+      (status >= 500 ? "Nova's AI service is having trouble. Try again shortly." : "");
+    return geminiHelp || "Something went wrong while getting that answer. Try again, or use the built-in engine.";
   }
   const base = STATUS_HELP[status] || (status >= 500 ? `${label} is having trouble. Try again shortly.` : "");
   if (base) return detail ? `${base} (${detail})` : base;
@@ -204,20 +182,20 @@ async function errorFromResponse(res, label, providerId = "") {
   const quota = res.status === 429 ? quotaFromBody(body) : { daily: false, retryAfter: 0 };
 
   let message = friendly(label, res.status, detail, providerId);
-  let code = badKey || (providerId === "gemini" && /api key not valid|api_key_invalid/i.test(detail)) ? "invalid_key" : "";
+  let code = providerId === "custom" && badKey ? "invalid_key" : "";
 
   if (res.status === 429) {
     code = quota.daily ? "quota_day" : "quota_minute";
     if (quota.daily) {
-      // This site's own daily cap already explains itself with its own wording.
-      const own = /this site has answered/i.test(detail);
+      // This site's own caps already explain themselves precisely.
+      const own = body?.error?.code === "quota_day";
       message = own
-        ? detail
+        ? detail || "Today's questions on this site are used up. The built-in engine still works."
         : providerId === "gemini"
           ? "Google's free tier has ended for today — this model's daily free requests are used up. It resets at midnight Pacific time."
           : detail || "Today's free allowance for this endpoint is used up.";
     } else if (providerId === "gemini") {
-      message = "Google's free tier is rate limited right now — wait a few seconds, then send again.";
+      message = "Nova's AI service is rate limited right now — wait a few seconds, then send again.";
     } else {
       message = detail ? `Rate limited: ${detail}` : "Rate limited by the provider. Wait a moment and try again.";
     }
@@ -249,23 +227,6 @@ export function normaliseProviderId(value) {
   return PROVIDER_IDS.includes(value) ? value : DEFAULT_PROVIDER;
 }
 
-function readGeminiMirror() {
-  try {
-    return (localStorage.getItem(GEMINI_MIRROR_KEY) || "").trim();
-  } catch {
-    return "";
-  }
-}
-
-function writeGeminiMirror(key) {
-  try {
-    if (key) localStorage.setItem(GEMINI_MIRROR_KEY, key);
-    else localStorage.removeItem(GEMINI_MIRROR_KEY);
-  } catch {
-    /* the settings object stays authoritative */
-  }
-}
-
 function normaliseSettings(raw) {
   const provider = normaliseProviderId(raw?.provider);
   const savedModel = typeof raw?.model === "string" ? raw.model.trim() : "";
@@ -276,9 +237,9 @@ function normaliseSettings(raw) {
     provider,
     model: usableModel ? savedModel : provider === "gemini" ? DEFAULT_MODEL : "",
     providers: {
-      gemini: {
-        key: typeof raw?.providers?.gemini?.key === "string" ? raw.providers.gemini.key.trim() : "",
-      },
+      // Gemini uses this site's shared key. A key left in an older install is
+      // dropped rather than kept in the browser.
+      gemini: { key: "" },
       custom: {
         key: typeof raw?.providers?.custom?.key === "string" ? raw.providers.custom.key.trim() : "",
         baseUrl: normaliseBase(raw?.providers?.custom?.baseUrl),
@@ -298,12 +259,6 @@ export function loadSettings() {
   }
 
   if (!settings) settings = normaliseSettings(null);
-
-  // A key dropped into `gemini_api_key` by hand counts as a saved key.
-  if (!settings.providers.gemini.key) {
-    const mirror = readGeminiMirror();
-    if (mirror) settings.providers.gemini.key = mirror;
-  }
   return settings;
 }
 
@@ -314,7 +269,6 @@ export function saveSettings(next) {
   } catch {
     throw new AiError("This browser blocked local storage, so the settings cannot be saved.");
   }
-  writeGeminiMirror(settings.providers.gemini.key);
   return settings;
 }
 
@@ -328,7 +282,6 @@ export function clearProvider(settings, providerId) {
   } catch {
     /* ignore */
   }
-  if (id === "gemini") writeGeminiMirror("");
   return next;
 }
 
@@ -372,9 +325,10 @@ export function resolveProvider(settings) {
 }
 
 export function providerHasKey(settings, providerId) {
-  const conf = settings?.providers?.[providerId];
-  if (providerId === "custom") return Boolean(conf?.key && normaliseBase(conf?.baseUrl));
-  return Boolean(conf?.key) || serverHasProvider(providerId);
+  // Gemini only ever uses the Worker's key; a custom endpoint needs its own.
+  if (providerId === "gemini") return serverHasProvider("gemini");
+  const conf = settings?.providers?.custom;
+  return Boolean(conf?.key && normaliseBase(conf?.baseUrl));
 }
 
 export function looksLikeKey(providerId, key) {
@@ -398,7 +352,7 @@ function unreachable(conf) {
   // (CORS or a bad URL), not because the network is down.
   return conf.id === "custom"
     ? `Could not reach ${conf.label}. Check the base URL and that it allows requests from this site.`
-    : `Could not reach ${conf.label}. Check your internet connection.`;
+    : `Could not reach Nova's AI service. Check your internet connection.`;
 }
 
 function modelsUrl(conf) {
@@ -413,27 +367,26 @@ function providerConf(provider, baseUrl = "") {
 }
 
 /**
- * Loads the provider's model list. Both need a key (or the server key), so it
- * is sent when available.
+ * Loads the provider's model list. Gemini uses the Worker's catalogue; a
+ * custom endpoint needs its own key.
  */
 export async function fetchModels({ provider = DEFAULT_PROVIDER, baseUrl = "", key = "", signal } = {}) {
   const conf = providerConf(provider, baseUrl);
   if (provider === "custom" && !conf.baseUrl) {
     throw new AiError("Add a base URL for your custom endpoint first.");
   }
-  if (provider === "gemini" && !key && !serverHasProvider("gemini")) {
-    throw new AiError("Add your free Google AI Studio key to load the model list.");
+  if (provider === "gemini") {
+    if (!viaServer("gemini")) {
+      throw new AiError("Live AI is unavailable right now. Nova answers with its built-in study engine.");
+    }
+  } else if (!key) {
+    throw new AiError("Add your endpoint's API key in AI settings first.");
   }
 
   const headers = { Accept: "application/json" };
-  if (provider === "gemini") {
-    if (key) headers["x-goog-api-key"] = key;
-  } else if (key) {
-    headers.Authorization = `Bearer ${key}`;
-  }
+  if (provider === "custom") headers.Authorization = `Bearer ${key}`;
 
-  const url =
-    provider === "gemini" && viaServer(provider, key) ? "/api/ai/gemini/models" : modelsUrl(conf);
+  const url = provider === "gemini" ? "/api/ai/gemini/models" : modelsUrl(conf);
 
   let res;
   try {
@@ -495,50 +448,27 @@ export async function fetchModels({ provider = DEFAULT_PROVIDER, baseUrl = "", k
  */
 export async function checkKey({ provider = DEFAULT_PROVIDER, key, baseUrl = "" } = {}) {
   const conf = providerConf(provider, baseUrl);
-  const onServer = viaServer(provider, key);
-  if (!key && !onServer) {
-    throw new AiError(`Add an API key for ${conf.label} in AI settings first.`);
-  }
 
   if (provider === "gemini") {
-    const url = onServer ? "/api/ai/gemini/key" : `${conf.baseUrl}/models?pageSize=1`;
-    const headers = key
-      ? { "x-goog-api-key": key, Accept: "application/json" }
-      : { Accept: "application/json" };
+    if (!viaServer("gemini")) {
+      throw new AiError("Live AI is unavailable right now: this site has no Gemini key configured.", {
+        code: "server_key",
+      });
+    }
 
     let res;
     try {
-      res = await fetch(url, { headers });
+      res = await fetch("/api/ai/gemini/key", { headers: { Accept: "application/json" } });
     } catch {
-      throw new AiError("Could not reach Google AI Studio. Check your internet connection.");
+      throw new AiError("Could not reach Nova's AI service. Check your internet connection.");
     }
 
-    if (!res.ok) {
-      const detail = await res
-        .json()
-        .then((body) => body?.error?.message || "")
-        .catch(() => "");
-      if (res.status === 401 || res.status === 403 || /api key not valid|api_key_invalid/i.test(detail)) {
-        throw new AiError(
-          geminiKeyNote(detail) ||
-            (detail
-              ? `Google rejected that key: ${detail}`
-              : "Google rejected that key. Copy it again from aistudio.google.com/apikey."),
-          { status: 401, code: "invalid_key" }
-        );
-      }
-      if (res.status === 429) {
-        throw new AiError("That key is rate limited right now — wait a minute and try again.", {
-          status: 429,
-          retryable: true,
-        });
-      }
-      throw new AiError(detail || "Google could not check that key.", { status: res.status });
-    }
+    if (!res.ok) throw await errorFromResponse(res, conf.label, "gemini");
 
-    return { verified: true, label: "free tier", limit: null, usage: null };
+    return { verified: true, label: "shared key", limit: null, usage: null };
   }
 
+  if (!key) throw new AiError(`Add an API key for ${conf.label} in AI settings first.`);
   if (!conf.baseUrl) throw new AiError("Add the endpoint's base URL first.");
 
   let res;
@@ -612,43 +542,35 @@ function geminiChunkText(payload) {
 }
 
 /**
- * Streams a Gemini reply. With a server key the Worker adds the study rules
- * and forwards the SSE stream; a browser key calls Google directly.
+ * Streams a Gemini reply through the Worker, which adds the shared key and the
+ * study rules. The browser never calls Google directly.
  */
-async function streamGemini({ key, model, messages, signal, onDelta, maxTokens = 900, steps = false }) {
+async function streamGemini({ model, messages, signal, onDelta, maxTokens = 900, steps = false }) {
   const conf = PROVIDERS.gemini;
-  const onServer = viaServer("gemini", key);
-  if (!key && !onServer) {
-    throw new AiError("Add your free Google AI Studio key in AI settings to chat with Gemini.");
+  if (!viaServer("gemini")) {
+    throw new AiError("Live AI is unavailable right now. Nova can answer with its built-in study engine.", {
+      code: "unavailable",
+    });
   }
   if (!model) throw new AiError("Choose a Gemini model before sending a message.");
 
   const contents = geminiContents(messages);
   if (!contents.length) throw new AiError("Write a message first.");
 
-  const body = onServer
-    ? { model, contents, maxTokens, steps: steps || undefined }
-    : {
-        contents,
-        systemInstruction: { parts: [{ text: steps ? `${SYSTEM_PROMPT}\n\n${STEPS_RULE}` : SYSTEM_PROMPT }] },
-        generationConfig: { maxOutputTokens: maxTokens },
-      };
-
-  const headers = {
-    "Content-Type": "application/json",
-    Accept: "text/event-stream",
-    ...(onServer ? {} : { "x-goog-api-key": key }),
-  };
-  const endpoint = onServer
-    ? "/api/ai/gemini/chat"
-    : `${conf.baseUrl}/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`;
+  const body = { model, contents, maxTokens, steps: steps || undefined };
+  const headers = { "Content-Type": "application/json", Accept: "text/event-stream" };
 
   let res;
   try {
-    res = await fetch(endpoint, { method: "POST", headers, body: JSON.stringify(body), signal });
+    res = await fetch("/api/ai/gemini/chat", {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+      signal,
+    });
   } catch (err) {
     if (err?.name === "AbortError") throw err;
-    throw new AiError("Could not reach Google AI Studio. Check your internet connection.");
+    throw new AiError("Could not reach Nova's AI service. Check your internet connection.");
   }
 
   if (!res.ok) throw await errorFromResponse(res, conf.label, "gemini");

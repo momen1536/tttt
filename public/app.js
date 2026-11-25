@@ -34,7 +34,7 @@ import {
   shortModel,
   splitModelName,
   streamChat,
-} from "./ai.js?v=15";
+} from "./ai.js?v=16";
 import { ChatStore, deriveTitle } from "./store.js?v=8";
 import { CATEGORIES, PromptStore } from "./prompts.js?v=7";
 import { SUBJECTS } from "./study.js?v=7";
@@ -132,17 +132,7 @@ const els = {
   stepsCheck: byId("ai-steps"),
   save: byId("ai-save"),
   modelSelect: byId("ai-model-select"),
-  help: byId("ai-help"),
   closeSettings: byId("ai-close"),
-
-  setupDialog: byId("setup-dialog"),
-  setupForm: byId("setup-form"),
-  setupKey: byId("setup-key"),
-  setupReveal: byId("setup-reveal"),
-  setupStatus: byId("setup-status"),
-  setupSave: byId("setup-save"),
-  setupSkip: byId("setup-skip"),
-  setupClose: byId("setup-close"),
 
   promptDialog: byId("prompt-dialog"),
   promptLibraryView: byId("prompt-library-view"),
@@ -213,7 +203,7 @@ const AI_FOLLOW_UPS = ["Explain that more simply", "Give me a concrete example",
 /** Shown when a free tier's daily allowance is used up. */
 const FREE_TIER_STEPS = [
   "Switch to another free model — each Gemini model has its own daily free allowance, so another one can still answer.",
-  "Wait for the reset (it restarts at midnight Pacific time), or add a free key from another Google account in AI settings.",
+  "Wait for the reset — the daily free allowance restarts at midnight Pacific time.",
   "Keep studying right now with the built-in engine — no key, no limit.",
 ];
 const FEATURED = ["ai", "ds", "dbms", "os", "networks", "oop", "webdev", "security"];
@@ -485,15 +475,16 @@ function updateHeader() {
     els.pill.title = `${conf.badge || conf.label} — update or clear the key`;
     els.engineFoot.textContent = `Powered by ${modelLabel(pick.provider, pick.model)}`;
   } else {
+    const gemini = pick.provider === "gemini";
     els.modelBtnLabel.textContent = pick.model ? modelLabel(pick.provider, pick.model) : "Built-in engine";
-    els.modelBtnProvider.textContent = pick.model ? `no key · ${providerInfo(pick.provider).label}` : "offline";
+    els.modelBtnProvider.textContent = pick.model && gemini ? "live AI unavailable" : "offline";
     els.modelBtn.dataset.state = "offline";
-    els.modelBtn.title = pick.model
-      ? `${pick.model} — add an API key to use it`
+    els.modelBtn.title = gemini
+      ? "Live AI is unavailable right now — Nova uses its built-in study engine"
       : "Connect a provider to use a live model";
-    els.engineLabel.textContent = pick.provider === "gemini" ? "Google AI Studio · add key" : "Built-in engine";
+    els.engineLabel.textContent = gemini ? "Live AI unavailable" : "Built-in engine";
     els.pill.classList.remove("is-live");
-    els.pill.title = pick.provider === "gemini" ? "Add your free Gemini API key" : "AI settings";
+    els.pill.title = "AI settings";
     els.engineFoot.textContent = "On-device engine";
   }
 }
@@ -2290,7 +2281,9 @@ function renderModelPopover() {
   els.modelHint.hidden = hasKey;
   els.modelHint.textContent = hasKey
     ? ""
-    : `No ${conf.label} key yet — Nova answers with its built-in engine until you connect one.`;
+    : provider === "gemini"
+      ? "Live AI is unavailable right now — Nova answers with its built-in study engine."
+      : `Add a ${conf.label} endpoint in AI settings to use these models.`;
 
   const models = sortModelsForFree(provider, providerModels(provider));
   const query = els.modelSearch.value.trim().toLowerCase();
@@ -2401,8 +2394,12 @@ function ensureModels(provider) {
     modelErrors[provider] = "Set a base URL in AI settings to load models.";
     return;
   }
-  // Without a key there is nothing to ask Google for; the static list shows.
-  if (provider === "gemini" && !providerHasKey(ai, "gemini")) return;
+  // Gemini lives behind the Worker's shared key; without it the static list
+  // still shows, with a note that live AI is unavailable.
+  if (provider === "gemini" && !serverHasProvider("gemini")) {
+    modelErrors[provider] = "Live AI is unavailable right now — Nova is using the built-in study engine.";
+    return;
+  }
 
   modelLoading = provider;
   renderModelPopover();
@@ -2471,24 +2468,22 @@ function hydrateSettingsFields(provider) {
   const saved = ai.providers?.[provider] || {};
   const chat = store.active;
   const chatModel = chat?.provider === provider ? chat.model : "";
-
-  const managed = serverHasProvider(provider);
+  const isGemini = provider === "gemini";
+  const managed = serverHasProvider("gemini");
 
   els.dialogProvider.value = provider;
-  els.keyInput.value = saved.key || "";
+  // Gemini never asks for a key: the Worker holds it for everyone.
+  els.keyInput.value = isGemini ? "" : saved.key || "";
   els.baseInput.value = provider === "custom" ? saved.baseUrl || "" : "";
   els.baseField.hidden = provider !== "custom";
-  els.keyField.hidden = managed;
-  els.help.hidden = provider !== "gemini";
-  els.keyLabel.textContent =
-    provider === "custom" ? "API key" : `${conf.label} API key`;
+  els.keyField.hidden = isGemini;
+  els.keyLabel.textContent = "Endpoint API key";
   els.keyInput.placeholder = conf.keyHint || "your API key";
-  els.remove.hidden = managed && !saved.key;
+  els.remove.hidden = isGemini || !saved.key;
+  els.test.hidden = isGemini && !managed;
+  els.test.textContent = isGemini ? "Test connection" : "Test key";
 
-  if (provider === "gemini") {
-    els.keyHint.innerHTML = managed
-      ? "This site's server already holds a Gemini key — nothing to paste. Add your own key to use your own free quota."
-      : 'Free, no credit card. Create one at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">aistudio.google.com/apikey</a>. It is saved only in this browser and sent only to Google.';
+  if (isGemini) {
     els.modelInput.placeholder = PROVIDERS.gemini.defaultModel;
     els.modelHintSettings.textContent =
       "The free tier allows a limited number of requests per minute. 3.5 Flash-Lite is the fastest; 4 Hydrogen is the strongest free model.";
@@ -2507,11 +2502,14 @@ function hydrateSettingsFields(provider) {
   els.keyInput.type = "password";
   els.reveal.textContent = "Show";
   els.reveal.setAttribute("aria-pressed", "false");
-  els.dialogStatus.textContent = saved.key
-    ? `Saved key ${maskKey(saved.key)}`
-    : managed
-      ? `Connected with this site's ${conf.label} key.`
-      : "";
+
+  if (isGemini) {
+    els.dialogStatus.textContent = managed
+      ? "Connected — Gemini answers with this site's shared key. No key is needed here."
+      : "Live AI is unavailable right now: this site has no Gemini key configured.";
+  } else {
+    els.dialogStatus.textContent = saved.key ? `Saved key ${maskKey(saved.key)}` : "";
+  }
   els.dialogStatus.className = "ai-status";
   if (els.stepsCheck) els.stepsCheck.checked = study?.showSteps?.() || false;
 
@@ -2605,10 +2603,11 @@ function openSettings(provider) {
   hydrateSettingsFields(target);
   if (!els.dialog.open) els.dialog.showModal();
   ensureModels(target);
-  setTimeout(
-    () => (ai.providers?.[target]?.key || serverHasProvider(target) ? els.modelInput : els.keyInput).focus(),
-    70
-  );
+  setTimeout(() => {
+    if (target === "custom" && !ai.providers?.custom?.key) els.keyInput.focus();
+    else if (els.modelSelect && !els.modelSelect.hidden) els.modelSelect.focus();
+    else els.modelInput.focus();
+  }, 70);
 }
 
 function closeSettings() {
@@ -2646,37 +2645,34 @@ els.modelInput.addEventListener("input", () => {
 els.form.addEventListener("submit", async (event) => {
   event.preventDefault();
   const provider = els.dialogProvider.value;
-  const key = els.keyInput.value.trim();
+  const isGemini = provider === "gemini";
+  const key = isGemini ? "" : els.keyInput.value.trim();
   const baseUrl = els.baseInput.value.trim();
   const model = els.modelInput.value.trim() || providerInfo(provider).defaultModel;
-  const managed = serverHasProvider(provider);
 
-  // A custom endpoint cannot work without its key. Gemini can still store a
-  // default model before the key is pasted; the header keeps saying "no key".
-  if (!key && !managed && provider === "custom") {
-    setDialogStatus("Paste the endpoint's API key first.", "err");
-    els.keyInput.focus();
-    return;
-  }
-  if (key && !looksLikeKey(provider, key)) {
-    setDialogStatus(
-      provider === "gemini"
-        ? "That doesn't look like a Google API key — new ones start with AQ., older ones with AIza."
-        : "That key looks too short.",
-      "err"
-    );
-    els.keyInput.focus();
-    return;
-  }
-  if (provider === "custom" && !validBaseUrl(baseUrl)) {
-    setDialogStatus("Add a base URL such as https://api.example.com/v1.", "err");
-    els.baseInput.focus();
-    return;
+  // Gemini saves a model only: the key belongs to the Worker. A custom
+  // endpoint still needs its own key and base URL.
+  if (!isGemini) {
+    if (!key) {
+      setDialogStatus("Paste the endpoint's API key first.", "err");
+      els.keyInput.focus();
+      return;
+    }
+    if (!looksLikeKey(provider, key)) {
+      setDialogStatus("That key looks too short.", "err");
+      els.keyInput.focus();
+      return;
+    }
+    if (!validBaseUrl(baseUrl)) {
+      setDialogStatus("Add a base URL such as https://api.example.com/v1.", "err");
+      els.baseInput.focus();
+      return;
+    }
   }
 
-  // A newly pasted key is checked before it is trusted, so a bad paste cannot
-  // sit there looking connected until the first message fails.
-  if (key && key !== (ai.providers?.[provider]?.key || "")) {
+  // A newly pasted endpoint key is checked before it is trusted, so a bad
+  // paste cannot sit there looking connected until the first message fails.
+  if (!isGemini && key !== (ai.providers?.custom?.key || "")) {
     els.save.disabled = true;
     els.test.disabled = true;
     setDialogStatus(`Checking your key with ${providerInfo(provider).label}…`);
@@ -2705,10 +2701,7 @@ els.form.addEventListener("submit", async (event) => {
     model,
     providers: {
       ...ai.providers,
-      [provider]: {
-        ...(key ? { key } : {}),
-        ...(provider === "custom" ? { baseUrl } : {}),
-      },
+      ...(isGemini ? { gemini: { key: "" } } : { custom: { key, baseUrl } }),
     },
   };
 
@@ -2728,12 +2721,11 @@ els.form.addEventListener("submit", async (event) => {
   renderModelPopover();
   els.dialog.close();
 
-  const connected = Boolean(key || managed);
   toast(
-    provider === "gemini"
-      ? connected
-        ? "Google AI Studio connected — free tier active"
-        : "Model saved — add a Gemini key to start chatting"
+    isGemini
+      ? serverHasProvider("gemini")
+        ? "Gemini connected — using this site's shared key"
+        : "Model saved — live AI is unavailable right now"
       : model
         ? `${providerInfo(provider).label} connected`
         : "Endpoint saved — add a model ID to use it"
@@ -2743,23 +2735,28 @@ els.form.addEventListener("submit", async (event) => {
 
 els.test.addEventListener("click", async () => {
   const provider = els.dialogProvider.value;
-  const key = els.keyInput.value.trim();
+  const isGemini = provider === "gemini";
+  const key = isGemini ? "" : els.keyInput.value.trim();
   const baseUrl = els.baseInput.value.trim();
-  const managed = serverHasProvider(provider);
 
-  if (!key && !managed) {
+  if (isGemini) {
+    if (!serverHasProvider("gemini")) {
+      setDialogStatus("Live AI is unavailable: this site has no Gemini key configured.", "err");
+      return;
+    }
+  } else if (!key) {
     setDialogStatus("Paste a key to test it.", "err");
     return;
   }
-  if (provider === "custom" && !validBaseUrl(baseUrl)) {
+  if (!isGemini && !validBaseUrl(baseUrl)) {
     setDialogStatus("Add a valid base URL first.", "err");
     return;
   }
 
   els.test.disabled = true;
   setDialogStatus(
-    managed && !key
-      ? `Checking this site's ${providerInfo(provider).label} connection…`
+    isGemini
+      ? "Checking this site's Gemini connection…"
       : `Checking key with ${providerInfo(provider).label}…`
   );
   try {
@@ -2783,75 +2780,41 @@ els.test.addEventListener("click", async () => {
 
 els.remove.addEventListener("click", async () => {
   const provider = els.dialogProvider.value;
-  const conf = providerInfo(provider);
-  const managed = serverHasProvider(provider);
+  if (provider !== "custom") return;
+
   const ok = await confirmAction({
-    title: `Remove ${conf.label} key?`,
-    message: managed
-      ? `Messages already in your conversations stay. Nova will use this site's ${conf.label} key instead of the one saved here.`
-      : "Messages already in your conversations stay. New replies will use the built-in engine until you connect a key again.",
+    title: "Remove endpoint key?",
+    message:
+      "The endpoint's address and key are removed from this browser. Messages already in your conversations stay.",
     confirmLabel: "Remove key",
   });
   if (!ok) return;
 
   ai = clearProvider(ai, provider);
   delete modelCache[provider];
-  hydrateSettingsFields(provider);
+
+  // Removing the only custom endpoint should not strand the chat on the
+  // offline engine while Gemini is available.
+  if (ai.provider === "custom") {
+    const model = PROVIDERS.gemini.defaultModel;
+    ai = { ...ai, provider: "gemini", model };
+    try {
+      ai = saveSettings(ai);
+    } catch {
+      /* in-memory settings still work */
+    }
+    const chat = store.active;
+    if (chat) store.setModel(chat.id, model, "gemini");
+    hydrateSettingsFields("gemini");
+    setDialogStatus("Endpoint removed — Gemini is selected again.", "ok");
+  } else {
+    hydrateSettingsFields(provider);
+    setDialogStatus("Endpoint removed.", "ok");
+  }
   updateHeader();
-  setDialogStatus(
-    managed
-      ? `${conf.label} key removed — Nova is using this site's key again.`
-      : `${conf.label} key removed — Nova is using the built-in engine again.`,
-    "ok"
-  );
 });
 
-/* ------------------------------------------------------------------ */
-/* First-run setup: the free Gemini key                                */
-/* ------------------------------------------------------------------ */
-
-const SETUP_SEEN_KEY = "nova.gemini.setup.seen";
-
-function setSetupStatus(text, tone = "") {
-  els.setupStatus.textContent = text;
-  els.setupStatus.className = `ai-status${tone ? ` ${tone}` : ""}`;
-}
-
-function openSetup() {
-  if (!els.setupDialog || els.setupDialog.open) return;
-  els.setupKey.value = ai.providers?.gemini?.key || "";
-  els.setupKey.type = "password";
-  els.setupReveal.textContent = "Show";
-  els.setupReveal.setAttribute("aria-pressed", "false");
-  setSetupStatus("");
-  els.setupDialog.showModal();
-  window.setTimeout(() => els.setupKey.focus(), 80);
-}
-
-function skipSetup() {
-  try {
-    sessionStorage.setItem(SETUP_SEEN_KEY, "1");
-  } catch {
-    /* ignore */
-  }
-  els.setupDialog.close();
-  els.input.focus();
-}
-
-/** Opens the guide when there is no Gemini key yet (once per tab session). */
-function maybeOpenSetup({ force = false } = {}) {
-  if (providerHasKey(ai, "gemini")) return;
-  if (!force) {
-    try {
-      if (sessionStorage.getItem(SETUP_SEEN_KEY) === "1") return;
-    } catch {
-      /* ignore */
-    }
-  }
-  openSetup();
-}
-
-/** Gemini is primary: keep a stored provider only while its key still works. */
+/** Gemini is primary: keep another stored provider only while it still works. */
 function syncDefaultProvider() {
   if (ai.provider === "gemini") return;
   if (providerHasKey(ai, ai.provider)) return;
@@ -2863,80 +2826,6 @@ function syncDefaultProvider() {
     /* the in-memory default still applies */
   }
 }
-
-els.setupReveal?.addEventListener("click", () => {
-  const show = els.setupKey.type === "password";
-  els.setupKey.type = show ? "text" : "password";
-  els.setupReveal.textContent = show ? "Hide" : "Show";
-  els.setupReveal.setAttribute("aria-pressed", String(show));
-});
-
-els.setupClose?.addEventListener("click", skipSetup);
-els.setupSkip?.addEventListener("click", skipSetup);
-els.setupDialog?.addEventListener("close", () => {
-  if (store.activeId) els.input.focus();
-});
-
-els.setupForm?.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const key = els.setupKey.value.trim();
-
-  if (!key) {
-    setSetupStatus("Paste the API key from Google AI Studio first.", "err");
-    els.setupKey.focus();
-    return;
-  }
-  if (!looksLikeKey("gemini", key)) {
-    setSetupStatus("That does not look like a Google API key — new ones start with AQ., older ones with AIza.", "err");
-    els.setupKey.focus();
-    return;
-  }
-
-  els.setupSave.disabled = true;
-  setSetupStatus("Checking your key with Google…");
-
-  try {
-    await checkKey({ provider: "gemini", key });
-    setSetupStatus("Key accepted — starting Gemini.", "ok");
-  } catch (err) {
-    if (err?.code === "invalid_key") {
-      setSetupStatus(err.message, "err");
-      els.setupSave.disabled = false;
-      return;
-    }
-    // Offline, or Google had a hiccup: keep the key and let the first reply try it.
-    setSetupStatus("Saved without a live check — your first reply will test it.", "warn");
-  }
-
-  try {
-    ai = saveSettings({
-      ...ai,
-      provider: "gemini",
-      model: ai.provider === "gemini" && ai.model ? ai.model : PROVIDERS.gemini.defaultModel,
-      providers: { ...ai.providers, gemini: { key } },
-    });
-  } catch (err) {
-    setSetupStatus(err.message, "err");
-    els.setupSave.disabled = false;
-    return;
-  }
-
-  const chat = store.ensureActive();
-  if (chat) store.setModel(chat.id, ai.model, "gemini");
-
-  try {
-    sessionStorage.setItem(SETUP_SEEN_KEY, "1");
-  } catch {
-    /* ignore */
-  }
-
-  updateHeader();
-  if (!els.modelPopover.hidden) renderModelPopover();
-  els.setupSave.disabled = false;
-  els.setupDialog.close();
-  toast("Gemini connected — free tier active");
-  els.input.focus();
-});
 
 els.closeSettings.addEventListener("click", closeSettings);
 els.dialog.addEventListener("click", (event) => {
@@ -3136,7 +3025,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 function anyDialogOpen() {
-  return [els.dialog, els.setupDialog, els.promptDialog, els.confirmDialog, byId("study-dialog")].some(
+  return [els.dialog, els.promptDialog, els.confirmDialog, byId("study-dialog")].some(
     (dialog) => dialog?.open
   );
 }
@@ -3243,7 +3132,12 @@ loadServerAi().then(() => {
   updateHeader();
   if (!els.modelPopover.hidden) renderModelPopover();
   if (els.dialog.open) hydrateSettingsFields(els.dialogProvider.value);
-  maybeOpenSetup();
+
+  // Gemini is shared-key only, so a visitor just needs to know when live AI is
+  // down; there is no key of theirs to ask for.
+  if (!serverHasProvider("gemini") && ai.provider === "gemini") {
+    toast("Live AI is offline right now — Nova is using the built-in study engine");
+  }
 });
 
 resizeInput();

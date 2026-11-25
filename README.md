@@ -2,10 +2,10 @@
 
 A polished one-page chat app with **two brains**:
 
-1. **Live models** — **Google AI Studio (Gemini)** on the free tier, with a built-in guide for getting a key; a Worker secret can hold the key so visitors need none. Any OpenAI-compatible endpoint can be added with its own key. Replies stream token by token, and you can switch models inside a conversation.
-2. **Built-in offline engine** — with no key (or no internet), Nova answers from a hand-written intent engine covering computer-science topics, maths, unit conversion and study coaching.
+1. **Live models** — **Google AI Studio (Gemini)** through this site's Worker, which holds the Gemini key, so every visitor can chat without entering one. Any OpenAI-compatible endpoint can still be added with its own key. Replies stream token by token, and you can switch models inside a conversation.
+2. **Built-in offline engine** — when live AI is unavailable (or there is no internet), Nova answers from a hand-written intent engine covering computer-science topics, maths, unit conversion and study coaching.
 
-Pure HTML, CSS and JavaScript. No framework, no build step, no backend required.
+Pure HTML, CSS and JavaScript. No framework and no build step; a small Cloudflare Worker serves the files and proxies Gemini.
 
 ---
 
@@ -33,29 +33,28 @@ Then open **http://localhost:8787**.
 
 ---
 
-## Connect a model
+## Using the AI
 
-On first load, with no key configured, Nova opens a short setup guide. Gemini is preselected as the provider either way.
+There is nothing to set up: **Google AI Studio (Gemini)** is the default, and the Worker holds the key, so every visitor can chat immediately. Open **AI settings** (the sliders icon, the engine pill under the title, or **Connect** in the sidebar) to pick a different model; **Test connection** checks the shared key without spending tokens.
 
-1. Open **AI settings** (the sliders icon, the engine pill under the title, or **Connect** in the sidebar). The panel keeps a collapsible **“How to get a free API key?”** guide.
-2. Pick a provider:
-   - **Google AI Studio (Gemini)** — free tier, no credit card. Create a key at <https://aistudio.google.com/apikey>, paste it, press **Save**. The key is checked against Google before it is stored.
-   - **Custom OpenAI-compatible endpoint** — paste a base URL such as `https://api.example.com/v1` and its key. Any gateway that implements `/chat/completions` and `/models` works (Groq, Together, a local llama.cpp server, your own proxy…).
-3. Press **Test key** to confirm the connection without spending tokens.
-4. Choose a default model. Gemini offers a dropdown (`gemini-3.5-flash-lite` by default, plus `gemini-4-hydrogen` and the other free Flash models) and an **Other model ID…** option; other providers use a live, searchable catalogue.
-5. **Save.** The header shows the model and provider, the chat input is focused, and replies stream in.
+- **Models** — a searchable catalogue from Google, free models first, with `gemini-3.5-flash-lite` as the default, plus `gemini-4-hydrogen` and the other free Flash models. **Other model ID…** accepts any Gemini model id.
+- **Custom OpenAI-compatible endpoint** (optional) — an advanced extra: paste a base URL such as `https://api.example.com/v1` and its own key. Any gateway implementing `/chat/completions` and `/models` works.
 
 Use the **model selector** in the chat header to switch models mid-conversation. The choice is remembered per conversation; switching never clears messages or starts a new chat. Star a model to keep it in the favourites row.
 
 ### Where the key goes
 
-The page checks the server first: `GET /api/ai/config` reports whether `GEMINI_API_KEY` exists on the Worker. With that key, `/api/ai/gemini/chat` adds it server-side and visitors need paste nothing; otherwise the app asks for a browser key and calls Google directly.
+`GEMINI_API_KEY` is a Worker secret and is only read in `src/worker.js`. The browser calls the site's own routes (`/api/ai/config`, `/api/ai/gemini/models`, `/api/ai/gemini/key`, `/api/ai/gemini/chat`); the Worker adds the key when it talks to Google. The key never appears in HTML, JavaScript, `localStorage` or a network URL, and no screen asks for it.
 
-A key pasted into the Gemini setup screen or AI settings is saved in this browser (`nova.ai.v2`, mirrored to `gemini_api_key` for convenience) and sent only to Google.
+For local development put the key in `.dev.vars` (git-ignored, loaded by `wrangler dev`):
 
-The secret lives in `.dev.vars` locally (git-ignored, loaded by `wrangler dev`). On a deployed Worker set it with `wrangler secret put GEMINI_API_KEY`; on Freebuff Sites use **Sites → Secrets**. Without it, `/api/ai/config` reports `gemini: false` and the app asks for a browser key.
+```
+GEMINI_API_KEY=...
+```
 
-A key pasted into AI settings for a **custom endpoint** is stored in this browser's `localStorage` (`nova.ai.v2`) and sent only to that endpoint. Anyone with access to the browser can read it, so use a low-limit key.
+On a deployed Worker set it with `wrangler secret put GEMINI_API_KEY`; on Freebuff Sites use **Sites → Secrets**. If the secret is missing, `GET /api/ai/config` reports `gemini: false`, the header says **Live AI unavailable**, and Nova keeps answering with the built-in engine.
+
+A key entered for a **custom endpoint** is stored in this browser's `localStorage` (`nova.ai.v2`) and sent only to that endpoint. Anyone with access to the browser can read it, so use a low-limit key.
 
 ---
 
@@ -128,8 +127,7 @@ A key pasted into AI settings for a **custom endpoint** is stored in this browse
 | --- | --- |
 | `nova.chats.v2` | Every conversation, its messages, model, timestamps and active id |
 | `nova.prefs.v2` | Favourite models and the last model used per provider |
-| `nova.ai.v2` | Provider, default model, keys and custom base URL |
-| `gemini_api_key` | Mirror of the Gemini key, so it can also be set by hand |
+| `nova.ai.v2` | Provider, default model, and a custom endpoint's base URL and key |
 | `nova.prompts.v2` | Saved prompts (defaults are seeded on first run) |
 | `nova.study.v1` | Flashcards and their due dates, imported notes, study log, study preferences |
 | `nova.theme.v1` | Light/dark preference |
@@ -154,19 +152,19 @@ Everything is stored in this browser (`nova.study.v1`); nothing new is sent anyw
 
 Photos are the one thing big enough to fill `localStorage`, so they are budgeted: each one is resized (1100px down to 440px) with the JPEG quality stepped down until it is under ~140 KB of base64, and the whole chat store keeps at most 1.5 MB of photos. When that budget or the browser quota is reached, the **oldest** photos are removed (the message text stays and the bubble notes that the photo was removed) and the save is retried. If even text cannot be written, the previous saved conversation is left untouched and the app keeps working in memory rather than reporting a false save. The Worker accepts at most one inline image per message.
 
-The Worker also enforces a generous daily request allowance per IP (80 calls) so one visitor cannot drain the shared free-model quota, and it rejects cross-origin `POST`s.
+The Worker also protects the shared key: at most 10 chat requests a minute and 80 a day per IP, 700 a day for the whole site, plus request-size, turn-count, image and model-id validation, and it rejects cross-origin `POST`s. Rate limits are per Worker isolate, so they are best effort rather than a hard global quota.
 
 ## How the AI path works
 
 `public/ai.js` is the whole integration:
 
-- **Providers** — `gemini` (`https://generativelanguage.googleapis.com/v1beta`) or a user-supplied OpenAI-compatible base URL. Gemini uses `streamGenerateContent?alt=sse` with `x-goog-api-key`; a custom endpoint uses `GET /models` and `POST /chat/completions`.
+- **Providers** — `gemini` through the Worker (which holds `GEMINI_API_KEY` and calls `streamGenerateContent?alt=sse`), or a user-supplied OpenAI-compatible base URL that uses `GET /models` and `POST /chat/completions`.
 - **Streaming** — `stream: true`, SSE frames parsed incrementally; `[DONE]`, keep-alive comments, mid-stream `error` frames and non-streaming JSON bodies are all handled.
 - **Context** — a system prompt plus the last **10 messages** of *that conversation*, which keeps each request inside the free tier's tokens-per-minute budget. Switching models reuses the same history.
-- **Errors** — status codes map to actionable messages, including a dedicated explanation for Gemini's `429` free-tier rate limit; abandoned streams keep whatever text already arrived.
+- **Errors** — status codes map to actionable messages, including a dedicated explanation for Gemini's `429` free-tier rate limit and for a model that is unavailable; abandoned streams keep whatever text already arrived.
 - **Abort** — the send button becomes Stop while a reply streams, and `Esc` does the same.
 
-Without a usable key, `app.js` calls `respond()` from `engine.js` exactly as before, so the project still works offline and in a viva with no internet.
+When live AI is unavailable (no secret, no internet, or a failed request), `app.js` calls `respond()` from `engine.js` exactly as before, so the project still works offline and in a viva.
 
 ### Adding a topic to the offline engine
 
@@ -200,14 +198,14 @@ Browser behaviour was also checked against a temporary local mock of an OpenAI-c
 
 ## Deploy
 
-Deploy the Worker (not just `public/`) so the `/api/ai/*` proxy exists:
+Deploy the Worker (not just `public/`) so the `/api/ai/*` proxy exists. The secret is what lets visitors chat without a key:
 
 ```bash
-npx wrangler secret put GEMINI_API_KEY   # optional: free Gemini key server-side
-npx wrangler deploy                     # uses deploy.json / wrangler.toml
+npx wrangler secret put GEMINI_API_KEY   # the shared Gemini key
+npx wrangler deploy                      # uses wrangler.toml
 ```
 
-On Freebuff Sites, deploy from `deploy.json` and add `GEMINI_API_KEY` under **Sites → Secrets** after the first deploy. A plain static host (GitHub Pages, Netlify, Vercel) still serves the UI, but visitors must then paste their own Gemini key.
+On Freebuff Sites, deploy from `deploy.json` and add `GEMINI_API_KEY` under **Sites → Secrets** after the first deploy. A plain static host (GitHub Pages, Netlify, Vercel) still serves the UI, but without the Worker there is no proxy, so live AI is unavailable and only the built-in engine answers.
 
 ---
 
@@ -215,5 +213,5 @@ On Freebuff Sites, deploy from `deploy.json` and add `GEMINI_API_KEY` under **Si
 
 - The offline engine is curated, not generative: outside CS, study skills and small talk it says so rather than inventing an answer.
 - Model quality, speed and price depend on the model you pick; free models are slower and rate-limited.
-- A Gemini key held as a Worker secret can be spent by anyone who opens the site, so watch the project's quota in AI Studio.
+- The shared Gemini key can be spent by anyone who opens the site; the Worker's rate limits are best effort, so watch the project's quota in AI Studio.
 - Conversation history is local to one browser profile; there is no account or sync.

@@ -277,7 +277,7 @@
       <header class="dialog-head">
         <div>
           <h2 id="ai-dialog-title">AI settings</h2>
-          <p class="dialog-sub">Google AI Studio (Gemini) is the default — its free tier needs no card.</p>
+          <p class="dialog-sub">Gemini is built in with this site's own key — nothing to paste, nothing to pay.</p>
         </div>
         <button class="icon-btn" id="ai-close" type="button" aria-label="Close settings">
           <svg class="icon"><use href="#i-close"></use></svg>
@@ -293,37 +293,16 @@
           </select>
         </div>
 
-        <div class="field" id="ai-key-field">
-          <label class="field-label" for="ai-key" id="ai-key-label">Google AI Studio API key</label>
+        <div class="field" id="ai-key-field" hidden>
+          <label class="field-label" for="ai-key" id="ai-key-label">Endpoint API key</label>
           <div class="key-row">
-            <input class="field-input" id="ai-key" type="password" placeholder="AIza… or AQ…" autocomplete="off" spellcheck="false" />
+            <input class="field-input" id="ai-key" type="password" placeholder="your API key" autocomplete="off" spellcheck="false" />
             <button class="text-btn" id="ai-reveal" type="button" aria-pressed="false">Show</button>
           </div>
           <span class="field-hint" id="ai-key-hint">
-            Free, no credit card. Create a key at
-            <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">aistudio.google.com/apikey</a>.
-            It is saved only in this browser and sent only to Google.
+            Only used for a custom endpoint. Sent to it as a <code>Bearer</code> token and stored in this browser.
           </span>
         </div>
-
-        <details class="help-toggle" id="ai-help">
-          <summary>How to get a free API key?</summary>
-          <ol class="help-steps">
-            <li>
-              Open
-              <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">Google AI Studio</a>
-              and sign in with any Google account.
-            </li>
-            <li>
-              Accept the terms if asked, then click <strong>Create API key</strong> and pick or create a
-              Google Cloud project in the dialog.
-            </li>
-            <li>
-              Copy the key — it starts with <code>AQ.</code> (older ones start with <code>AIza</code>) — paste it
-              above and press <strong>Save</strong>. No credit card is needed for the free tier.
-            </li>
-          </ol>
-        </details>
 
         <div class="field" id="ai-base-field" hidden>
           <label class="field-label" for="ai-base-url">Base URL</label>
@@ -349,17 +328,17 @@
         </label>
 
         <p class="ai-note">
-          Gemini keys are free and stay in this browser, unless this site's server holds one already.
-          Without a usable key, Nova answers with its built-in offline engine.
+          Gemini answers use this site's shared key, so there is no key to enter. If live AI is unavailable,
+          Nova keeps working with its built-in study engine.
         </p>
 
         <p class="ai-status" id="ai-status" role="status" aria-live="polite"></p>
       </div>
 
       <footer class="dialog-foot">
-        <button class="text-btn danger" id="ai-remove" type="button">Remove key</button>
+        <button class="text-btn danger" id="ai-remove" type="button" hidden>Remove key</button>
         <span class="ai-foot-actions">
-          <button class="text-btn" id="ai-test" type="button">Test key</button>
+          <button class="text-btn" id="ai-test" type="button">Test connection</button>
           <button class="primary-btn" id="ai-save" type="submit">Save</button>
         </span>
       </footer>
@@ -667,69 +646,6 @@
     </div>
   </dialog>
 
-  <!-- ── First-run setup: free Gemini key ────────────────────── -->
-  <dialog class="app-dialog setup-dialog" id="setup-dialog" aria-labelledby="setup-title">
-    <form class="setup-form" id="setup-form">
-      <header class="dialog-head">
-        <div>
-          <h2 id="setup-title">Start with Google AI Studio</h2>
-          <p class="dialog-sub">A free Gemini key takes about two minutes — no credit card.</p>
-        </div>
-        <button class="icon-btn" id="setup-close" type="button" aria-label="Close setup">
-          <svg class="icon"><use href="#i-close"></use></svg>
-        </button>
-      </header>
-
-      <div class="setup-body">
-        <ol class="setup-steps">
-          <li>
-            <span class="setup-num" aria-hidden="true">1</span>
-            <div>
-              <p class="setup-step-title">Open Google AI Studio</p>
-              <p class="setup-step-text">Sign in with any Google account, then open the API keys page.</p>
-              <a class="setup-link" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">
-                Open aistudio.google.com/apikey
-              </a>
-            </div>
-          </li>
-          <li>
-            <span class="setup-num" aria-hidden="true">2</span>
-            <div>
-              <p class="setup-step-title">Create an API key</p>
-              <p class="setup-step-text">
-                Accept the terms if asked, click <strong>Create API key</strong>, and pick or create a Google
-                Cloud project in the dialog.
-              </p>
-            </div>
-          </li>
-          <li>
-            <span class="setup-num" aria-hidden="true">3</span>
-            <div>
-              <p class="setup-step-title">Paste it here</p>
-              <p class="setup-step-text">Copy the key, paste it below and save — the chat input is ready right after.</p>
-            </div>
-          </li>
-        </ol>
-
-        <div class="field">
-          <label class="field-label" for="setup-key">Your Gemini API key</label>
-          <div class="key-row">
-            <input class="field-input" id="setup-key" type="password" placeholder="AIza… or AQ…" autocomplete="off" spellcheck="false" />
-            <button class="text-btn" id="setup-reveal" type="button" aria-pressed="false">Show</button>
-          </div>
-          <span class="field-hint">Stored only in this browser. Nova never sends it anywhere except Google's API.</span>
-        </div>
-
-        <p class="ai-status" id="setup-status" role="status" aria-live="polite"></p>
-      </div>
-
-      <footer class="dialog-foot">
-        <button class="text-btn" id="setup-skip" type="button">Use built-in engine</button>
-        <button class="primary-btn" id="setup-save" type="submit">Save &amp; start chatting</button>
-      </footer>
-    </form>
-  </dialog>
-
   <!-- ── Confirmation ───────────────────────────────────────── -->
   <dialog class="app-dialog confirm-dialog" id="confirm-dialog" aria-labelledby="confirm-title">
     <div class="confirm-box">
@@ -745,6 +661,6 @@
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
   <script defer src="./vendor/katex/katex.min.js"></script>
-  <script type="module" src="./app.js?v=20"></script>
+  <script type="module" src="./app.js?v=21"></script>
 </body>
 </html>
